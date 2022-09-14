@@ -21,34 +21,69 @@ from FITS_utils import __simpleaxis, __image_retrieve
 from SSIM_utils import __compare_images
 
 
-##### Rotation of the image
-def __rotate_image(gal, hdu, angle, log_rot=False, simil=False, split=True, plot=False, log=True, savepath=None, cmap=None, SSIM_cmap=None):
+'''_____»_____»_____»_____»_____» Rotate image «_____«_____«_____«_____«_____'''
+def __rotate_image(gal, hdu, angle, log_rot=False, simil=False, split=True, plot=False, log=True, cmap=None, SSIM_cmap=None, savepath=None):
+    """
+    # Description
+    -------------
+    Rotates an image from a FITS file to a given angle and returns the rotated FITS file.
+
+    Parameters
+    ----------
+    · gal       : str                   / Name of the galaxy
+    · hdu       : Astropy FITS          / FITS file containing the galaxy image and header
+    · angle     : float                 / Angle to rotate the image
+    · log_rot   : bool, optional        / Rotate the image and then apply the logarithmic scale
+    · simil     : bool, optional        / Obtain the SSIM results between the original and rotated images
+    · split     : bool, optional        / Split the SSIM results into the three components
+    · plot      : bool, optional        / Show the rotated image (and SSIM results if simil is active)
+    · log       : bool, optional        / Use logarithmic scale for the plots
+    · cmap      : str or cmap, optional / Colormap used for the original and rotated images
+    · SSIM_cmap : str or cmap, optional / Colormap used for the SSIM-related maps
+    · savepath  : str, optional         / Path where to save the plot
+
+    Returns
+    -------
+    * If simil:
+        · rot_fits : Astropy FITS / Rotated FITS file
+        · rot_ssim : int and np.array list / List containing the SSIM results
+            - If not split: Contains mean SSIM and SSIM map
+            - If split: Contains mean SSIM, SSIM map, 
+                                 mean luminosity, luminosity map, 
+                                 mean contrast, contrast map,
+                                 mean structure and structure map
+    * If not simil:
+        · rot_fits : Astropy FITS / Rotated FITS file
+    """
+    
     if cmap is None: cmap = cmo.cm.balance_r
     if SSIM_cmap is None: SSIM_cmap = cmo.cm.balance_r
     
-    ########## Data preparation
     try:
         hdu.header['FILTER']
     except:
         hdu = hdu[0]
         
-    band = hdu.header['FILTER']
-    img = np.array(hdu.data, dtype=float);  head = hdu.header
+    band = hdu.header['FILTER']  # The filter is retrieved
+    img = np.array(hdu.data, dtype=float);  head = hdu.header  # The image and header are read
     rot_img = rotate(img, -angle)
-    if log_rot:
+    
+    if log_rot:  # Change to logarithmic scale for the rotated image if log_rot is active
         val = abs(np.min(img)-1)
-        img = np.log10(img + val)
+        rot_img = np.log10(rot_img + val)
         log = False
     
     rot_label = 'Rotated (%.2fº)' % (angle)
+    
+    # SSIM calculation if simil is active
     if simil: _, rot_ssim = __compare_images(img, rot_img, split=split, plot=plot, log=log, suptitle=gal+' - '+band, title1='Original', title2=rot_label, cmap=cmap, SSIM_cmap=SSIM_cmap)
     if plot and not simil:
         fig, ax = plt.subplots(1, 2, figsize=(16, 8.2), sharex=True, sharey=True)
         fig.suptitle(gal+' - '+band)
-        if log:
-            im0 = ax[0].imshow(img, norm=LogNorm(), cmap=cmap) 
-            ax[1].imshow(rot_img, norm=LogNorm(vmin=im0.norm.vmin, vmax=im0.norm.vmax), cmap=cmap)
-        else:
+        if log: # Logarithmic scale plots
+            im0 = ax[0].imshow(img, norm=LogNorm(), cmap=cmap)  # Original image 
+            ax[1].imshow(rot_img, norm=LogNorm(vmin=im0.norm.vmin, vmax=im0.norm.vmax), cmap=cmap)  # Rotated image
+        else:   # Linear scale plots
             im0 = ax[0].imshow(img, cmap=cmap) 
             ax[1].imshow(rot_img, vmin=im0.norm.vmin, vmax=im0.norm.vmax, cmap=cmap)
         
@@ -62,9 +97,9 @@ def __rotate_image(gal, hdu, angle, log_rot=False, simil=False, split=True, plot
         plt.subplots_adjust(bottom=0.20)
         plt.tight_layout()
 
-    rot_fits = fits.PrimaryHDU(data=rot_img, header=head)
+    rot_fits = fits.PrimaryHDU(data=rot_img, header=head)  # Masked image FITS
     
-    if plot and (savepath is not None): 
+    if plot and (savepath is not None):  # Saving the plot
         if not os.path.isdir(savepath): os.makedirs(savepath)
         plt.savefig(savepath+gal+'_'+band+'_rot_'+str(np.round(angle, 2))+'.png', bbox_inches='tight')
             
@@ -72,10 +107,43 @@ def __rotate_image(gal, hdu, angle, log_rot=False, simil=False, split=True, plot
     return rot_fits
 
 
-
-def __find_orientation(hdu1, hdu2, log_rot=False, angle_range=180, precision=5, flip=True, permute=True, split=True, \
+'''_____»_____»_____»_____»_____» Find relative PA «_____«_____«_____«_____«_____'''
+def __find_orientation(hdu1, hdu2, log_rot=False, angle_range=180, precision=5, flip=True, permute=False, split=False, \
                        plot=False, log=True, suptitle='', title1='Galaxy 1', title2='Galaxy 2', \
-                       all_range=True, cmap=None, SSIM_cmap=None, savepath=None):    
+                       all_range=False, cmap=None, SSIM_cmap=None, savepath=None):    
+    """
+    # Description
+    -------------
+    Finds the alignment of two galaxies' images by searching for the highest SSIM
+    value obtained by relatively rotating them.
+
+    # Parameters
+    ------------
+    · hdu1        : Astropy FITS          / First galaxy FITS file
+    · hdu2        : Astropy FITS          / Second galaxy FITS file
+    · log_rot     : bool, optional        / Rotate and then apply logarithmic scale
+    · angle_range : float, optional       / Maximum rotated angle
+    · precision   : float, optional       / Step in the rotation process
+    · flip        : bool, optional        / Try flipping the second image and rotating it again
+    · permute     : bool, optional        / Try rotating the first image instead of the second one. Also apply flip if active
+    · split       : bool, optional        / Split the SSIM results into the three components
+    · plot        : bool, optional        / Plot SSIM vs rotated angle results
+    · log         : bool, optional        / Use logarithmic scale for the galaxy images
+    · suptitle    : str, optional         / Superior title of the figure
+    · title1      : str, optional         / Title of the first galaxy image
+    · title2      : str, optional         / Title of the second galaxy image
+    · all_range   : bool, optional        / Plot SSIM from 0 to 1 in the SSIM vs rotated angle plot
+    · cmap        : str or cmap, optional / Colormap used for the original and rotated images
+    · SSIM_cmap   : str or cmap, optional / Colormap used for the SSIM-related maps
+    · savepath    : str, optional         / Path where to save the plot
+
+    # Returns
+    ---------
+    · ori_fits            : Astropy FITS / Rotated FITS file
+    · ori_angle           : float        / Found relative position angle between the two images
+    · [flipped, permuted] : bool list    / Indicates if the process has flipped and/or permuted the rotated image
+    """
+    
     if cmap is None: cmap = cmo.cm.balance_r
     if SSIM_cmap is None: SSIM_cmap = cmo.cm.balance_r
     angle_range = int(angle_range)
@@ -91,6 +159,7 @@ def __find_orientation(hdu1, hdu2, log_rot=False, angle_range=180, precision=5, 
     
     img1  = hdu1.data.copy();  img2 = hdu2.data.copy()
     head2 = hdu2.header.copy()
+
     if log_rot: 
         img1 = np.log10(img1 + abs(np.min(img1)-1))
         log = False
