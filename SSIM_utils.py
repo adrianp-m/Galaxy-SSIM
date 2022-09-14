@@ -26,7 +26,7 @@ sys.path.append('./FITS_manipulation')
 from FITS_utils import __simpleaxis, __image_retrieve
      
 
-'''_____»_____»_____»_____»_____» __compare_images «_____«_____«_____«_____«_____'''
+'''_____»_____»_____»_____»_____» Compare images «_____«_____«_____«_____«_____'''
 def __compare_images(img1, img2, win_size=None, gaussian_weights=True, plot=False, log=True, decimals=4, suptitle='', title1='Image 1', title2='Image 2', cmap=None, SSIM_cmap=None, filename=None, 
                      alpha=1, beta=1, gamma=1, split=False):
     """
@@ -42,8 +42,8 @@ def __compare_images(img1, img2, win_size=None, gaussian_weights=True, plot=Fals
     · img2             : float np.array        / Compared image of non-negative values
     · win_size         : int, optional         / Size of the used window for each local comparison
     · gaussian_weights : bool, optional        / Use a gaussian weighted window
-    · plot             : bool, optional        / Perform plot of the results
-    · log              : bool, optional        / Use logarithmic scale for the images imshow
+    · plot             : bool, optional        / Perform a plot of the results
+    · log              : bool, optional        / Use logarithmic scale for the images imshows
     · decimals         : int, optional         / Number of decimals to use in plots' labels
     · suptitle         : str, optional         / Superior title of the plot
     · title1           : str, optional         / Title of the reference image
@@ -54,14 +54,14 @@ def __compare_images(img1, img2, win_size=None, gaussian_weights=True, plot=Fals
     · alpha            : float, optional       / Alpha non-negative superindex (luminosity component)
     · beta             : float, optional       / Beta non-negative superindex (contrast component)
     · gamma            : float, optional       / Gamma non-negative superindex (structure component)
-    · split            : bool, optional        / Obtain each SSIM component result
+    · split            : bool, optional        / Split the SSIM results into the three components
 
     # Returns
     ---------
     · mse    : float                 / Value of the Mean Squared Error
     · ssimil : int and np.array list / List containing the SSIM results
-        * If not split: Contains mean SSIM and SSIM map 
-        * If split    : Contains mean SSIM, SSIM map, 
+        - If not split: Contains mean SSIM and SSIM map 
+        - If split    : Contains mean SSIM, SSIM map, 
                                  mean luminosity, luminosity map,
                                  mean contrast, contrast map,
                                  mean structure and structure map

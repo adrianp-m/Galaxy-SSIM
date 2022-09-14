@@ -74,12 +74,12 @@ def add_to_blacklist(filename, galaxy, filt, message, savepath='./'):
     
     # Parameters
     ------------
-    · savepath: str, optional / Path where the file is/will be located. If None, selects current folder
     · filename: str           / Name of the blacklist file (with extension)
     · galaxy:   str           / Name of the galaxy to add
     · filt:     str           / Filter in which the galaxy is blacklisted
     · message:  str           / Additional message (blacklist reason)
-    
+    · savepath: str, optional / Path where the file is/will be located. If None, selects current folder
+
     # Returns
     ---------
     None
@@ -97,7 +97,7 @@ def add_to_blacklist(filename, galaxy, filt, message, savepath='./'):
 
 '''_____»_____»_____»_____»_____» save_gal_images «_____«_____«_____«_____«_____'''
 def save_gal_images(pos, savepath, name=None, filters = ['u', 'g', 'r', 'i', 'z'], spectro=True, 
-                    dr=17, npetro=3.5, min_rad=5, plot=False, overwrite=False, timeout=120_000): # Change this so the galaxy name is given and the coordinates are found?
+                    dr=17, npetro=3.5, min_rad=5, plot=False, overwrite=False, timeout=120_000):
     """
     # Description
     -------------
@@ -106,17 +106,17 @@ def save_gal_images(pos, savepath, name=None, filters = ['u', 'g', 'r', 'i', 'z'
     
     # Parameters
     ------------
-    · pos:       Astropy SkyCoord     / Astropy coordinates object containing RA and DEC
-    · savepath:  str                  / Path where files will be saved separated by filters
-    · name:      str, optional        / Name of the galaxy. If None, name will be selected as the coordinates
-    · filters:   list, str, optional  / List of filters for the image download
-    · spectro:   bool, optional       / Perform spectroscopic match in the query
-    · dr:        int, optional        / SDSS data release
-    · npetro:    float, optional      / Factor for Rpetro50 to cut the image
-    · min_rad:   float, optional      / Minimum Rpetro50 value for retrieval
-    · plot:      bool, optinoal       / Plot retrieved images
-    · overwrite: bool, optional       / Overwrite existing images
-    · timeout:   float, optional      / Timeout for the query process  
+    · pos:       Astropy SkyCoord    / Astropy coordinates object containing RA and DEC
+    · savepath:  str                 / Path where files will be saved separated by filters
+    · name:      str, optional       / Name of the galaxy. If None, name will be selected as the coordinates
+    · filters:   str list, optional  / List of filters for the image download
+    · spectro:   bool, optional      / Perform spectroscopic match in the query
+    · dr:        int, optional       / SDSS data release
+    · npetro:    float, optional     / Factor for Rpetro50 to cut the image
+    · min_rad:   float, optional     / Minimum Rpetro50 value for retrieval
+    · plot:      bool, optinoal      / Plot retrieved images
+    · overwrite: bool, optional      / Overwrite existing images
+    · timeout:   float, optional     / Timeout for the query process  
     message: Additional message (blacklist reason)
     
     # Returns

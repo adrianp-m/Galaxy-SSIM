@@ -23,7 +23,7 @@ if os.getcwd()+'/FITS_manipulation' not in sys.path: sys.path.append(os.getcwd()
 from FITS_utils import __image_retrieve, __normalization, __ellipse_fit
 from rotation import __rotate_image, __find_orientation
 from SSIM_utils import __compare_images
-from masking import __mask_image, __ellipse_mask
+from masking import __mask_sources, __ellipse_mask
 
 warnings.filterwarnings('ignore')
 
@@ -77,41 +77,40 @@ if __name__ == '__main__':
     '''_____»_____»_____»_____»_____» Galaxies «_____«_____«_____«_____«_____'''
     
     '''_____» Galaxy names «_____'''
-    galaxies = ['NGC0001', 'NGC0160', 'NGC0214', 'NGC1093', 'NGC2253', 'NGC2410', \
+    all_galaxies = ['NGC0001', 'NGC0160', 'NGC0214', 'NGC1093', 'NGC2253', 'NGC2410', \
                 'NGC2540', 'NGC2596', 'NGC2639', 'NGC2906', 'NGC2916', 'NGC5522', \
                 'NGC5947', 'NGC5980', 'NGC6004', 'NGC6032', 'NGC6063', 'NGC6394', \
                 'NGC7311', 'NGC7466', 'UGC00005', 'UGC02311', 'UGC03973', 'UGC09777', \
                 'UGC12810']
-    galaxies.sort()
+    all_galaxies.sort()
     
     '''_____» Active «_____'''
-    AGN = dict(zip(galaxies, [False, False, True, True, False, True, False, False, \
+    AGN = dict(zip(all_galaxies, [False, False, True, True, False, True, False, False, \
                               True, True, True, False, False, False, False, False, \
                               False, True, True, True, True, False, True, False, False]))
-    galaxies = [g+'*'*AGN[g] for g in galaxies]
+    all_galaxies = [g+'*'*AGN[g] for g in all_galaxies]
         
     '''_____» Hubble classification «_____'''
-    Hubble = dict(zip(galaxies, ['Sbc', 'Sa', 'SBbc', 'SBbc', 'SBbc', 'SBb', 'SBbc', \
+    Hubble = dict(zip(all_galaxies, ['Sbc', 'Sa', 'SBbc', 'SBbc', 'SBbc', 'SBb', 'SBbc', \
                                   'Sbc', 'Sa', 'Sbc', 'Sbc', 'SBb', 'SBbc', 'Sbc', \
                                   'SBbc', 'SBbc', 'Sbc', 'SBbc', 'Sa', 'Sbc', 'Sbc', \
                                   'SBbc', 'SBbc', 'Sbc', 'SBbc']))
         
     '''_____» Subsample selection «_____'''
-    only_gal = []  # Select only these galaxies
+    # only_gal = ['NGC0214', 'NGC1093', 'NGC7311']  # Select only these galaxies
+    only_gal = []
     exclude = []   # Exclude these galaxies
     
+    galaxies = all_galaxies
     if only_gal != []:
-        galaxies = [g for g in galaxies if g.replace('*', '') in only_gal]
-        Hubble_new = {gal:Hubble[gal] for gal in galaxies}
-        Hubble = Hubble_new
+        galaxies = [g for g in all_galaxies if g.replace('*', '') in only_gal]
+
         
     if exclude != []:
-        exclude = [g for g in galaxies if g.replace('*', '') in exclude]
+        exclude = [g for g in all_galaxies if g.replace('*', '') in exclude]
         for ex in exclude: 
             del(galaxies[galaxies.index(ex)])
-            del(Hubble[ex])
 
-    
 
 '''_____»_____»_____»_____»_____» Analysis «_____«_____«_____«_____«_____'''
 
@@ -133,7 +132,7 @@ def main_analysis(galaxies, band, filespath, file, Hubble, flip=True, permute=Fa
     · galaxies       : str list        / List of galaxies names
     · band           : str             / Filter to be analysed
     · filespath      : str             / Path where original files are located
-    · file           : str             / Name of the csv file where the results will be saved
+    · file           : str             / Name of the .csv file where the results will be saved
     · Hubble         : str, dict       / Dictionary with the Hubble type for each galaxy
     · flip           : bool, optional  / Flip the second galaxy image in each alignment
     · permute        : bool, optional  / Change the rotated galaxy in each alignment
@@ -150,10 +149,10 @@ def main_analysis(galaxies, band, filespath, file, Hubble, flip=True, permute=Fa
 
     # Returns
     ---------
-    None.
+    None
 
     """
-    
+
     i = len(galaxies)
     total = 0
     while i > 1:  # Calculation of total comparisons
@@ -184,7 +183,7 @@ def main_analysis(galaxies, band, filespath, file, Hubble, flip=True, permute=Fa
     
     print('Minimal size found: %ipx \n' % (size))
     print('List of used galaxies: %s (%i galaxies, %i comparisons)\n' % (galaxies, len(galaxies), total))
-    
+    remains = galaxies.copy()
     if os.path.isfile(savepath+file+'.csv'): # If there is a csv file, the analysis is resumed from where it stopped
         df = pd.read_csv(savepath+file+'.csv', index_col=0)
         done_galaxies = list(df.index)
@@ -215,8 +214,8 @@ def main_analysis(galaxies, band, filespath, file, Hubble, flip=True, permute=Fa
         
         if i != len(galaxies) - 1: print('● Galaxy %s %s is being compared with:' % (galaxy1.ljust(10), ('('+Hubble[galaxy1]+')').ljust(7)))
         hdu1  = __image_retrieve(galaxy1.replace('*', ''),  filespath, band=band, size=size, mask=False, unpack=False)  # Galaxy 1 image is retrieved
-        hdu1_masked = __mask_image(galaxy1, hdu1, border_factor=0)                                                      # Masking of the image
-        hdu1_norm = fits.PrimaryHDU(__normalization(hdu1_masked.data)[0], hdu1.header)                                  # Normalized image copy
+        hdu1_masked = __mask_sources(galaxy1, hdu1, border_factor=0)                                                    # Masking of the image
+        hdu1_norm = fits.PrimaryHDU(__normalization(hdu1_masked.data), hdu1.header)                                  # Normalized image copy
 
         for galaxy2 in unused_galaxies:
             count += 1
@@ -230,10 +229,10 @@ def main_analysis(galaxies, band, filespath, file, Hubble, flip=True, permute=Fa
             
             sys.stdout.write(r'       ∟ %s %s | ' % ((galaxy2.ljust(10)), ('('+Hubble[galaxy2]+')').ljust(7)))
             filename = savepath+'%s_%s_"SSIM"' % (galaxy1, galaxy2)  # Name of the saved plot
-            
-            hdu2 = __image_retrieve(galaxy2.replace('*', ''), filespath, band=band, size=size, mask=True, unpack=False)  # Galaxy 2 image is retrieved
-            hdu2_masked = __mask_image(galaxy2, hdu2, border_factor=0)                                                   # Masking of the image
-            hdu2_norm = fits.PrimaryHDU(__normalization(hdu2_masked.data)[0], hdu2.header)                               # Normalized image copy
+
+            hdu2 = __image_retrieve(galaxy2.replace('*', ''), filespath, band=band, size=size, mask=False, unpack=False)  # Galaxy 2 image is retrieved
+            hdu2_masked = __mask_sources(galaxy2, hdu2, border_factor=0)                                                 # Masking of the image
+            hdu2_norm = fits.PrimaryHDU(__normalization(hdu2_masked.data), hdu2.header)                               # Normalized image copy
             
             # The relative orientation between the two galaxies is searched. This process takes most of the computational time for each iteration. It can be 
             # reduced by turning off the flip and permutation options.
@@ -264,8 +263,8 @@ def main_analysis(galaxies, band, filespath, file, Hubble, flip=True, permute=Fa
             
             if ellipse:  # Ellipse masking
                 gal1_apert = __ellipse_fit(hdu1_masked_rot.data, r=aper_rad)            # The ellipse parameters are searched for the first galaxy
-                img1_final, mask = __ellipse_mask(hdu1_rot.data, apertures=gal1_apert)  # The ellipse is applied to both images
-                img2_final, _    = __ellipse_mask(hdu2_rot.data, apertures=gal1_apert)
+                img1_final, mask = __ellipse_mask(hdu1_rot.data, apertures=gal1_apert, give_mask=True)  # The ellipse is applied to both images
+                img2_final       = __ellipse_mask(hdu2_rot.data, apertures=gal1_apert)
             else:
                 img1_final = hdu1_masked_rot.data
                 img2_final = hdu2_masked_rot.data
@@ -306,18 +305,18 @@ def LaTeX_results(galaxies, Hubble, band, threshold_SSIM, filespath, file, savep
     Creates LaTeX tables and figures from previously obtained SSIM results 
     saved in a csv file for each filter
 
-    Parameters
-    ----------
+    # Parameters
+    ------------
     · galaxies        : str list / List of galaxies names
     · Hubble          : str dict / Dictionary with the Hubble type for each galaxy
-    · band            : str      / Analysed filter
+    · band            : str      / Selected filter
     · threshold_SSIM  : float    / SSIM threshold for twins criterion
-    · filespath       : str      / Path where the results are saved in a csv
-    · file            : str      / Results csv file name
+    · filespath       : str      / Path where the results .csv file is located
+    · file            : str      / Name of the results .csv file
     · savepath        : str      / Path where the .tex files are saved 
     
-    Returns
-    -------
+    # Returns
+    ---------
     None
 
     """
@@ -486,17 +485,17 @@ if __name__ == '__main__':
     
     SSIM_filt = {} # Dictionary to save all the SSIM index matrix by filter
     for i, b in enumerate(band):  # Results for each filter
-        try:
-            print(70*'='+'\n')
-            print('Working with filter SDSS%s\n'.center(70) % b)
-            print(70*'='+'\n')
+        # try:
+        #     print(70*'='+'\n')
+        #     print('Working with filter SDSS%s\n'.center(70) % b)
+        #     print(70*'='+'\n')
             
-            main_analysis(galaxies, b, filespath, file, Hubble, flip=flip, permute=permute, ellipse=ellipse, log=log,
-                            min_size=min_size, threshold_SSIM=threshold_SSIM, aper_rad=aper_rad,
-                            overwrite=overwrite, plot=plot, sup_label=sup_label, savepath=savepath+b+'/', LaTeX=True)
-        except Exception as e:
-            print('Filter %s failed: %s' % (b, e))
-            continue
+        main_analysis(galaxies, b, filespath, file, Hubble, flip=flip, permute=permute, ellipse=ellipse, log=log,
+                        min_size=min_size, threshold_SSIM=threshold_SSIM, aper_rad=aper_rad,
+                        overwrite=overwrite, plot=plot, sup_label=sup_label, savepath=savepath+b+'/', LaTeX=True)
+        # except Exception as e:
+        #     print('Filter %s failed: %s' % (b, e))
+        #     continue
         
         if sum_filters and b in sum_filters:  # Average of the selected filters
             df = pd.read_csv(savepath+b+'/'+file+'.csv', index_col=0)
@@ -506,7 +505,7 @@ if __name__ == '__main__':
                 SSIM_total += SSIM_filt[b]
         
     
-    if sum_filters is not None:  # If we have selected some filters
+    if sum_filters is not None and SSIM_filt != {}:  # If we have selected some filters
         SSIM_total = SSIM_total/len(SSIM_filt.keys())  # The average is calculated
     
         galaxies = list(df.index)  # The used galaxies
